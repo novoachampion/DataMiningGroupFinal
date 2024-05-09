@@ -26,11 +26,6 @@ def load_data(csv_file_path, header_row=1):
     df.columns = df.columns.str.strip()  # Strip spaces to ensure consistent column names
     return df
 
-def load_multiple_data(files, header_row=1):
-    data_frames = [load_data(file, header_row) for file in files]  # Use load_data to ensure consistency
-    combined_df = pd.concat(data_frames, ignore_index=True)
-    return combined_df
-
 def prepare_features_targets(df, features_cols, targets_cols):
     X = df.drop(targets_cols, axis=1)
     y = df[targets_cols]
