@@ -1,18 +1,29 @@
 import pandas as pd
 from data_preparation import download_and_save_excel, excel_to_csvs, load_data, prepare_features_targets
-from model import train_and_evaluate
+from model import train_and_evaluate as train_linear
+from random_forest_model import train_and_evaluate_rf as train_rf
 from sklearn.metrics import mean_squared_error, r2_score
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, PageBreak
 from reportlab.lib import colors
 
-def create_excel_report(file_name, df, model_metrics, correlation_matrix, descriptive_stats):
+def create_excel_report(file_name, df, linear_metrics, rf_metrics, correlation_matrix, descriptive_stats):
     with pd.ExcelWriter(file_name) as writer:
         # Save the first few rows of the DataFrame to a sheet
         df.head().to_excel(writer, sheet_name='DataFrame_Head', index=False)
         
+        # Save the entire DataFrame to a sheet
+        df.to_excel(writer, sheet_name='Full_DataFrame', index=False)
+        
         # Save the model metrics to a sheet
-        metrics_df = pd.DataFrame([model_metrics])
+        metrics_df = pd.DataFrame({
+            'Model': ['Linear Regression', 'Random Forest'],
+            'Mean Squared Error': [linear_metrics['Mean Squared Error'], rf_metrics['Mean Squared Error']],
+            'R-squared Score': [linear_metrics['R-squared Score'], rf_metrics['R-squared Score']],
+            'Precision': [linear_metrics['Precision'], rf_metrics['Precision']],
+            'Recall': [linear_metrics['Recall'], rf_metrics['Recall']],
+            'F1 Score': [linear_metrics['F1 Score'], rf_metrics['F1 Score']]
+        })
         metrics_df.to_excel(writer, sheet_name='Model_Metrics', index=False)
         
         # Save the correlation matrix to a sheet
@@ -72,31 +83,35 @@ def main():
     print("Shape of features (X):", X.shape)
     print("Shape of targets (y):", y.shape)
     
-    # Train the model and evaluate it
-    print("Starting model training and evaluation...")
-    model, y_test, y_pred, precision, recall, f1 = train_and_evaluate(X, y)
-    
-    # Print shapes for debugging
-    print("Shape of predictions:", y_pred.shape)
+    # Train Linear Regression Model
+    print("Training Linear Regression Model...")
+    linear_model, y_test_linear, y_pred_linear, precision_linear, recall_linear, f1_linear = train_linear(X, y)
+    linear_metrics = {
+        'Mean Squared Error': mean_squared_error(y_test_linear, y_pred_linear),
+        'R-squared Score': r2_score(y_test_linear, y_pred_linear),
+        'Precision': precision_linear,
+        'Recall': recall_linear,
+        'F1 Score': f1_linear
+    }
 
-    # Distribution of binary predictions
-    y_pred_class = (y_pred > y_pred.mean(axis=0)).astype(int)
-    print("Distribution of binary predictions:", pd.Series(y_pred_class.flatten()).value_counts())
+    # Train Random Forest Model
+    print("Training Random Forest Model...")
+    rf_model, y_test_rf, y_pred_rf, precision_rf, recall_rf, f1_rf = train_rf(X, y)
+    rf_metrics = {
+        'Mean Squared Error': mean_squared_error(y_test_rf, y_pred_rf),
+        'R-squared Score': r2_score(y_test_rf, y_pred_rf),
+        'Precision': precision_rf,
+        'Recall': recall_rf,
+        'F1 Score': f1_rf
+    }
 
-    # Check correlations
+    # Calculate correlation matrix
     correlation_matrix = df.corr()
     print("Correlation matrix:\n", correlation_matrix)
 
-    # Create Excel report
+    # Generate Excel report
     print("Generating Excel report...")
-    model_metrics = {
-        'Mean Squared Error': mean_squared_error(y_test, y_pred),
-        'R-squared Score': r2_score(y_test, y_pred),
-        'Precision': precision,
-        'Recall': recall,
-        'F1 Score': f1
-    }
-    create_excel_report(report_file, df, model_metrics, correlation_matrix, descriptive_stats)
+    create_excel_report(report_file, df, linear_metrics, rf_metrics, correlation_matrix, descriptive_stats)
     print(f"Excel report generated: {report_file}")
 
 if __name__ == "__main__":
